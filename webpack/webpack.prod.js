@@ -9,7 +9,7 @@ module.exports = merge(base, {
 	mode: "production", // 环境 development 和 production 环境 链接： https://www.webpackjs.com/concepts/mode/#mode-development
 	output: {
 		filename: "index.js", // 文件名
-		path: resolve("../dist"), // 文件输出地址
+		path: resolve("../docs"), // 文件输出地址
 		library: {
 			/**
 			 * 发布运行环境
