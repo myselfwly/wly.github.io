@@ -72,7 +72,9 @@ export const OtherInfo: FC<OtherInfoPropsType> = (props) => {
 				</div>
 			</div>
 			<div className="sourceCode">
-				<GithubOutlined style={{ fontSize: 18 }} />
+				<a href={otherInfo.sourceCode} target="_blank">
+					<GithubOutlined style={{ fontSize: 18 }} />
+				</a>
 			</div>
 		</OtherInfoWarpper>
 	);
@@ -100,5 +102,6 @@ const OtherInfoWarpper = styled.div`
 		position: fixed;
 		top: 8px;
 		right: 8px;
+		cursor: pointer;
 	}
 `;

@@ -61,3 +61,12 @@ a {
 * {
   box-sizing: border-box
 }
+
+html {
+  width: 100%;
+}
+
+body {
+  width: 21cm;
+  margin: auto;
+}

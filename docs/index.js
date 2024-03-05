@@ -83,6 +83,13 @@ a {
 * {
   box-sizing: border-box;
 }
+html {
+  width: 100%;
+}
+body {
+  width: 21cm;
+  margin: auto;
+}
 `, ""]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
@@ -1678,6 +1685,24 @@ module.exports = function (METHOD_NAME) {
 
 /***/ }),
 
+/***/ 4598:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var fails = __webpack_require__(9039);
+
+module.exports = function (METHOD_NAME, argument) {
+  var method = [][METHOD_NAME];
+  return !!method && fails(function () {
+    // eslint-disable-next-line no-useless-call -- required for testing
+    method.call(null, argument || function () { return 1; }, 1);
+  });
+};
+
+
+/***/ }),
+
 /***/ 7680:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -2445,6 +2470,44 @@ module.exports = function (argument, usingIterator) {
   var iteratorMethod = arguments.length < 2 ? getIteratorMethod(argument) : usingIterator;
   if (aCallable(iteratorMethod)) return anObject(call(iteratorMethod, argument));
   throw new $TypeError(tryToString(argument) + ' is not iterable');
+};
+
+
+/***/ }),
+
+/***/ 6933:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var uncurryThis = __webpack_require__(9504);
+var isArray = __webpack_require__(4376);
+var isCallable = __webpack_require__(4901);
+var classof = __webpack_require__(4576);
+var toString = __webpack_require__(655);
+
+var push = uncurryThis([].push);
+
+module.exports = function (replacer) {
+  if (isCallable(replacer)) return replacer;
+  if (!isArray(replacer)) return;
+  var rawLength = replacer.length;
+  var keys = [];
+  for (var i = 0; i < rawLength; i++) {
+    var element = replacer[i];
+    if (typeof element == 'string') push(keys, element);
+    else if (typeof element == 'number' || classof(element) === 'Number' || classof(element) === 'String') push(keys, toString(element));
+  }
+  var keysLength = keys.length;
+  var root = true;
+  return function (key, value) {
+    if (root) {
+      root = false;
+      return value;
+    }
+    if (isArray(this)) return value;
+    for (var j = 0; j < keysLength; j++) if (keys[j] === key) return value;
+  };
 };
 
 
@@ -3249,6 +3312,127 @@ module.exports.f = function (C) {
 
 /***/ }),
 
+/***/ 2360:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+/* global ActiveXObject -- old IE, WSH */
+var anObject = __webpack_require__(8551);
+var definePropertiesModule = __webpack_require__(6801);
+var enumBugKeys = __webpack_require__(8727);
+var hiddenKeys = __webpack_require__(421);
+var html = __webpack_require__(397);
+var documentCreateElement = __webpack_require__(4055);
+var sharedKey = __webpack_require__(6119);
+
+var GT = '>';
+var LT = '<';
+var PROTOTYPE = 'prototype';
+var SCRIPT = 'script';
+var IE_PROTO = sharedKey('IE_PROTO');
+
+var EmptyConstructor = function () { /* empty */ };
+
+var scriptTag = function (content) {
+  return LT + SCRIPT + GT + content + LT + '/' + SCRIPT + GT;
+};
+
+// Create object with fake `null` prototype: use ActiveX Object with cleared prototype
+var NullProtoObjectViaActiveX = function (activeXDocument) {
+  activeXDocument.write(scriptTag(''));
+  activeXDocument.close();
+  var temp = activeXDocument.parentWindow.Object;
+  activeXDocument = null; // avoid memory leak
+  return temp;
+};
+
+// Create object with fake `null` prototype: use iframe Object with cleared prototype
+var NullProtoObjectViaIFrame = function () {
+  // Thrash, waste and sodomy: IE GC bug
+  var iframe = documentCreateElement('iframe');
+  var JS = 'java' + SCRIPT + ':';
+  var iframeDocument;
+  iframe.style.display = 'none';
+  html.appendChild(iframe);
+  // https://github.com/zloirock/core-js/issues/475
+  iframe.src = String(JS);
+  iframeDocument = iframe.contentWindow.document;
+  iframeDocument.open();
+  iframeDocument.write(scriptTag('document.F=Object'));
+  iframeDocument.close();
+  return iframeDocument.F;
+};
+
+// Check for document.domain and active x support
+// No need to use active x approach when document.domain is not set
+// see https://github.com/es-shims/es5-shim/issues/150
+// variation of https://github.com/kitcambridge/es5-shim/commit/4f738ac066346
+// avoid IE GC bug
+var activeXDocument;
+var NullProtoObject = function () {
+  try {
+    activeXDocument = new ActiveXObject('htmlfile');
+  } catch (error) { /* ignore */ }
+  NullProtoObject = typeof document != 'undefined'
+    ? document.domain && activeXDocument
+      ? NullProtoObjectViaActiveX(activeXDocument) // old IE
+      : NullProtoObjectViaIFrame()
+    : NullProtoObjectViaActiveX(activeXDocument); // WSH
+  var length = enumBugKeys.length;
+  while (length--) delete NullProtoObject[PROTOTYPE][enumBugKeys[length]];
+  return NullProtoObject();
+};
+
+hiddenKeys[IE_PROTO] = true;
+
+// `Object.create` method
+// https://tc39.es/ecma262/#sec-object.create
+// eslint-disable-next-line es/no-object-create -- safe
+module.exports = Object.create || function create(O, Properties) {
+  var result;
+  if (O !== null) {
+    EmptyConstructor[PROTOTYPE] = anObject(O);
+    result = new EmptyConstructor();
+    EmptyConstructor[PROTOTYPE] = null;
+    // add "__proto__" for Object.getPrototypeOf polyfill
+    result[IE_PROTO] = O;
+  } else result = NullProtoObject();
+  return Properties === undefined ? result : definePropertiesModule.f(result, Properties);
+};
+
+
+/***/ }),
+
+/***/ 6801:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+var DESCRIPTORS = __webpack_require__(3724);
+var V8_PROTOTYPE_DEFINE_BUG = __webpack_require__(8686);
+var definePropertyModule = __webpack_require__(4913);
+var anObject = __webpack_require__(8551);
+var toIndexedObject = __webpack_require__(5397);
+var objectKeys = __webpack_require__(1072);
+
+// `Object.defineProperties` method
+// https://tc39.es/ecma262/#sec-object.defineproperties
+// eslint-disable-next-line es/no-object-defineproperties -- safe
+exports.f = DESCRIPTORS && !V8_PROTOTYPE_DEFINE_BUG ? Object.defineProperties : function defineProperties(O, Properties) {
+  anObject(O);
+  var props = toIndexedObject(Properties);
+  var keys = objectKeys(Properties);
+  var length = keys.length;
+  var index = 0;
+  var key;
+  while (length > index) definePropertyModule.f(O, key = keys[index++], props[key]);
+  return O;
+};
+
+
+/***/ }),
+
 /***/ 4913:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
@@ -3332,6 +3516,38 @@ exports.f = DESCRIPTORS ? $getOwnPropertyDescriptor : function getOwnPropertyDes
 
 /***/ }),
 
+/***/ 298:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+/* eslint-disable es/no-object-getownpropertynames -- safe */
+var classof = __webpack_require__(4576);
+var toIndexedObject = __webpack_require__(5397);
+var $getOwnPropertyNames = (__webpack_require__(8480).f);
+var arraySlice = __webpack_require__(7680);
+
+var windowNames = typeof window == 'object' && window && Object.getOwnPropertyNames
+  ? Object.getOwnPropertyNames(window) : [];
+
+var getWindowNames = function (it) {
+  try {
+    return $getOwnPropertyNames(it);
+  } catch (error) {
+    return arraySlice(windowNames);
+  }
+};
+
+// fallback for IE11 buggy Object.getOwnPropertyNames with iframe and window
+module.exports.f = function getOwnPropertyNames(it) {
+  return windowNames && classof(it) === 'Window'
+    ? getWindowNames(it)
+    : $getOwnPropertyNames(toIndexedObject(it));
+};
+
+
+/***/ }),
+
 /***/ 8480:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
@@ -3399,6 +3615,24 @@ module.exports = function (object, names) {
     ~indexOf(result, key) || push(result, key);
   }
   return result;
+};
+
+
+/***/ }),
+
+/***/ 1072:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var internalObjectKeys = __webpack_require__(1828);
+var enumBugKeys = __webpack_require__(8727);
+
+// `Object.keys` method
+// https://tc39.es/ecma262/#sec-object.keys
+// eslint-disable-next-line es/no-object-keys -- safe
+module.exports = Object.keys || function keys(O) {
+  return internalObjectKeys(O, enumBugKeys);
 };
 
 
@@ -3521,6 +3755,18 @@ module.exports = getBuiltIn('Reflect', 'ownKeys') || function ownKeys(it) {
   var getOwnPropertySymbols = getOwnPropertySymbolsModule.f;
   return getOwnPropertySymbols ? concat(keys, getOwnPropertySymbols(it)) : keys;
 };
+
+
+/***/ }),
+
+/***/ 9167:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var global = __webpack_require__(4475);
+
+module.exports = global;
 
 
 /***/ }),
@@ -3870,6 +4116,48 @@ module.exports = !!Object.getOwnPropertySymbols && !fails(function () {
 
 /***/ }),
 
+/***/ 8242:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var call = __webpack_require__(9565);
+var getBuiltIn = __webpack_require__(7751);
+var wellKnownSymbol = __webpack_require__(8227);
+var defineBuiltIn = __webpack_require__(6840);
+
+module.exports = function () {
+  var Symbol = getBuiltIn('Symbol');
+  var SymbolPrototype = Symbol && Symbol.prototype;
+  var valueOf = SymbolPrototype && SymbolPrototype.valueOf;
+  var TO_PRIMITIVE = wellKnownSymbol('toPrimitive');
+
+  if (SymbolPrototype && !SymbolPrototype[TO_PRIMITIVE]) {
+    // `Symbol.prototype[@@toPrimitive]` method
+    // https://tc39.es/ecma262/#sec-symbol.prototype-@@toprimitive
+    // eslint-disable-next-line no-unused-vars -- required for .length
+    defineBuiltIn(SymbolPrototype, TO_PRIMITIVE, function (hint) {
+      return call(valueOf, this);
+    }, { arity: 1 });
+  }
+};
+
+
+/***/ }),
+
+/***/ 1296:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var NATIVE_SYMBOL = __webpack_require__(4495);
+
+/* eslint-disable es/no-symbol -- safe */
+module.exports = NATIVE_SYMBOL && !!Symbol['for'] && !!Symbol.keyFor;
+
+
+/***/ }),
+
 /***/ 9225:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -4156,6 +4444,23 @@ module.exports = String(test) === '[object z]';
 
 /***/ }),
 
+/***/ 655:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var classof = __webpack_require__(6955);
+
+var $String = String;
+
+module.exports = function (argument) {
+  if (classof(argument) === 'Symbol') throw new TypeError('Cannot convert a Symbol value to a string');
+  return $String(argument);
+};
+
+
+/***/ }),
+
 /***/ 6823:
 /***/ ((module) => {
 
@@ -4258,6 +4563,38 @@ module.exports = isCallable(WeakMap) && /native code/.test(String(WeakMap));
 
 /***/ }),
 
+/***/ 511:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var path = __webpack_require__(9167);
+var hasOwn = __webpack_require__(9297);
+var wrappedWellKnownSymbolModule = __webpack_require__(1951);
+var defineProperty = (__webpack_require__(4913).f);
+
+module.exports = function (NAME) {
+  var Symbol = path.Symbol || (path.Symbol = {});
+  if (!hasOwn(Symbol, NAME)) defineProperty(Symbol, NAME, {
+    value: wrappedWellKnownSymbolModule.f(NAME)
+  });
+};
+
+
+/***/ }),
+
+/***/ 1951:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+var wellKnownSymbol = __webpack_require__(8227);
+
+exports.f = wellKnownSymbol;
+
+
+/***/ }),
+
 /***/ 8227:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -4281,6 +4618,33 @@ module.exports = function (name) {
       : createWellKnownSymbol('Symbol.' + name);
   } return WellKnownSymbolsStore[name];
 };
+
+
+/***/ }),
+
+/***/ 8598:
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var $ = __webpack_require__(6518);
+var uncurryThis = __webpack_require__(9504);
+var IndexedObject = __webpack_require__(7055);
+var toIndexedObject = __webpack_require__(5397);
+var arrayMethodIsStrict = __webpack_require__(4598);
+
+var nativeJoin = uncurryThis([].join);
+
+var ES3_STRINGS = IndexedObject !== Object;
+var FORCED = ES3_STRINGS || !arrayMethodIsStrict('join', ',');
+
+// `Array.prototype.join` method
+// https://tc39.es/ecma262/#sec-array.prototype.join
+$({ target: 'Array', proto: true, forced: FORCED }, {
+  join: function join(separator) {
+    return nativeJoin(toIndexedObject(this), separator === undefined ? ',' : separator);
+  }
+});
 
 
 /***/ }),
@@ -4338,6 +4702,114 @@ if (DESCRIPTORS && !FUNCTION_NAME_EXISTS) {
     }
   });
 }
+
+
+/***/ }),
+
+/***/ 3110:
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var $ = __webpack_require__(6518);
+var getBuiltIn = __webpack_require__(7751);
+var apply = __webpack_require__(8745);
+var call = __webpack_require__(9565);
+var uncurryThis = __webpack_require__(9504);
+var fails = __webpack_require__(9039);
+var isCallable = __webpack_require__(4901);
+var isSymbol = __webpack_require__(757);
+var arraySlice = __webpack_require__(7680);
+var getReplacerFunction = __webpack_require__(6933);
+var NATIVE_SYMBOL = __webpack_require__(4495);
+
+var $String = String;
+var $stringify = getBuiltIn('JSON', 'stringify');
+var exec = uncurryThis(/./.exec);
+var charAt = uncurryThis(''.charAt);
+var charCodeAt = uncurryThis(''.charCodeAt);
+var replace = uncurryThis(''.replace);
+var numberToString = uncurryThis(1.0.toString);
+
+var tester = /[\uD800-\uDFFF]/g;
+var low = /^[\uD800-\uDBFF]$/;
+var hi = /^[\uDC00-\uDFFF]$/;
+
+var WRONG_SYMBOLS_CONVERSION = !NATIVE_SYMBOL || fails(function () {
+  var symbol = getBuiltIn('Symbol')('stringify detection');
+  // MS Edge converts symbol values to JSON as {}
+  return $stringify([symbol]) !== '[null]'
+    // WebKit converts symbol values to JSON as null
+    || $stringify({ a: symbol }) !== '{}'
+    // V8 throws on boxed symbols
+    || $stringify(Object(symbol)) !== '{}';
+});
+
+// https://github.com/tc39/proposal-well-formed-stringify
+var ILL_FORMED_UNICODE = fails(function () {
+  return $stringify('\uDF06\uD834') !== '"\\udf06\\ud834"'
+    || $stringify('\uDEAD') !== '"\\udead"';
+});
+
+var stringifyWithSymbolsFix = function (it, replacer) {
+  var args = arraySlice(arguments);
+  var $replacer = getReplacerFunction(replacer);
+  if (!isCallable($replacer) && (it === undefined || isSymbol(it))) return; // IE8 returns string on undefined
+  args[1] = function (key, value) {
+    // some old implementations (like WebKit) could pass numbers as keys
+    if (isCallable($replacer)) value = call($replacer, this, $String(key), value);
+    if (!isSymbol(value)) return value;
+  };
+  return apply($stringify, null, args);
+};
+
+var fixIllFormed = function (match, offset, string) {
+  var prev = charAt(string, offset - 1);
+  var next = charAt(string, offset + 1);
+  if ((exec(low, match) && !exec(hi, next)) || (exec(hi, match) && !exec(low, prev))) {
+    return '\\u' + numberToString(charCodeAt(match, 0), 16);
+  } return match;
+};
+
+if ($stringify) {
+  // `JSON.stringify` method
+  // https://tc39.es/ecma262/#sec-json.stringify
+  $({ target: 'JSON', stat: true, arity: 3, forced: WRONG_SYMBOLS_CONVERSION || ILL_FORMED_UNICODE }, {
+    // eslint-disable-next-line no-unused-vars -- required for `.length`
+    stringify: function stringify(it, replacer, space) {
+      var args = arraySlice(arguments);
+      var result = apply(WRONG_SYMBOLS_CONVERSION ? stringifyWithSymbolsFix : $stringify, null, args);
+      return ILL_FORMED_UNICODE && typeof result == 'string' ? replace(result, tester, fixIllFormed) : result;
+    }
+  });
+}
+
+
+/***/ }),
+
+/***/ 9773:
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var $ = __webpack_require__(6518);
+var NATIVE_SYMBOL = __webpack_require__(4495);
+var fails = __webpack_require__(9039);
+var getOwnPropertySymbolsModule = __webpack_require__(3717);
+var toObject = __webpack_require__(8981);
+
+// V8 ~ Chrome 38 and 39 `Object.getOwnPropertySymbols` fails on primitives
+// https://bugs.chromium.org/p/v8/issues/detail?id=3443
+var FORCED = !NATIVE_SYMBOL || fails(function () { getOwnPropertySymbolsModule.f(1); });
+
+// `Object.getOwnPropertySymbols` method
+// https://tc39.es/ecma262/#sec-object.getownpropertysymbols
+$({ target: 'Object', stat: true, forced: FORCED }, {
+  getOwnPropertySymbols: function getOwnPropertySymbols(it) {
+    var $getOwnPropertySymbols = getOwnPropertySymbolsModule.f;
+    return $getOwnPropertySymbols ? $getOwnPropertySymbols(toObject(it)) : [];
+  }
+});
 
 
 /***/ }),
@@ -4830,6 +5302,416 @@ var CHECK_WRAPPER = IS_PURE && !FORCED_PROMISE_CONSTRUCTOR;
 $({ target: 'Promise', stat: true, forced: IS_PURE || FORCED_PROMISE_CONSTRUCTOR }, {
   resolve: function resolve(x) {
     return promiseResolve(CHECK_WRAPPER && this === PromiseConstructorWrapper ? NativePromiseConstructor : this, x);
+  }
+});
+
+
+/***/ }),
+
+/***/ 6761:
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var $ = __webpack_require__(6518);
+var global = __webpack_require__(4475);
+var call = __webpack_require__(9565);
+var uncurryThis = __webpack_require__(9504);
+var IS_PURE = __webpack_require__(6395);
+var DESCRIPTORS = __webpack_require__(3724);
+var NATIVE_SYMBOL = __webpack_require__(4495);
+var fails = __webpack_require__(9039);
+var hasOwn = __webpack_require__(9297);
+var isPrototypeOf = __webpack_require__(1625);
+var anObject = __webpack_require__(8551);
+var toIndexedObject = __webpack_require__(5397);
+var toPropertyKey = __webpack_require__(6969);
+var $toString = __webpack_require__(655);
+var createPropertyDescriptor = __webpack_require__(6980);
+var nativeObjectCreate = __webpack_require__(2360);
+var objectKeys = __webpack_require__(1072);
+var getOwnPropertyNamesModule = __webpack_require__(8480);
+var getOwnPropertyNamesExternal = __webpack_require__(298);
+var getOwnPropertySymbolsModule = __webpack_require__(3717);
+var getOwnPropertyDescriptorModule = __webpack_require__(7347);
+var definePropertyModule = __webpack_require__(4913);
+var definePropertiesModule = __webpack_require__(6801);
+var propertyIsEnumerableModule = __webpack_require__(8773);
+var defineBuiltIn = __webpack_require__(6840);
+var defineBuiltInAccessor = __webpack_require__(2106);
+var shared = __webpack_require__(5745);
+var sharedKey = __webpack_require__(6119);
+var hiddenKeys = __webpack_require__(421);
+var uid = __webpack_require__(3392);
+var wellKnownSymbol = __webpack_require__(8227);
+var wrappedWellKnownSymbolModule = __webpack_require__(1951);
+var defineWellKnownSymbol = __webpack_require__(511);
+var defineSymbolToPrimitive = __webpack_require__(8242);
+var setToStringTag = __webpack_require__(687);
+var InternalStateModule = __webpack_require__(1181);
+var $forEach = (__webpack_require__(9213).forEach);
+
+var HIDDEN = sharedKey('hidden');
+var SYMBOL = 'Symbol';
+var PROTOTYPE = 'prototype';
+
+var setInternalState = InternalStateModule.set;
+var getInternalState = InternalStateModule.getterFor(SYMBOL);
+
+var ObjectPrototype = Object[PROTOTYPE];
+var $Symbol = global.Symbol;
+var SymbolPrototype = $Symbol && $Symbol[PROTOTYPE];
+var RangeError = global.RangeError;
+var TypeError = global.TypeError;
+var QObject = global.QObject;
+var nativeGetOwnPropertyDescriptor = getOwnPropertyDescriptorModule.f;
+var nativeDefineProperty = definePropertyModule.f;
+var nativeGetOwnPropertyNames = getOwnPropertyNamesExternal.f;
+var nativePropertyIsEnumerable = propertyIsEnumerableModule.f;
+var push = uncurryThis([].push);
+
+var AllSymbols = shared('symbols');
+var ObjectPrototypeSymbols = shared('op-symbols');
+var WellKnownSymbolsStore = shared('wks');
+
+// Don't use setters in Qt Script, https://github.com/zloirock/core-js/issues/173
+var USE_SETTER = !QObject || !QObject[PROTOTYPE] || !QObject[PROTOTYPE].findChild;
+
+// fallback for old Android, https://code.google.com/p/v8/issues/detail?id=687
+var fallbackDefineProperty = function (O, P, Attributes) {
+  var ObjectPrototypeDescriptor = nativeGetOwnPropertyDescriptor(ObjectPrototype, P);
+  if (ObjectPrototypeDescriptor) delete ObjectPrototype[P];
+  nativeDefineProperty(O, P, Attributes);
+  if (ObjectPrototypeDescriptor && O !== ObjectPrototype) {
+    nativeDefineProperty(ObjectPrototype, P, ObjectPrototypeDescriptor);
+  }
+};
+
+var setSymbolDescriptor = DESCRIPTORS && fails(function () {
+  return nativeObjectCreate(nativeDefineProperty({}, 'a', {
+    get: function () { return nativeDefineProperty(this, 'a', { value: 7 }).a; }
+  })).a !== 7;
+}) ? fallbackDefineProperty : nativeDefineProperty;
+
+var wrap = function (tag, description) {
+  var symbol = AllSymbols[tag] = nativeObjectCreate(SymbolPrototype);
+  setInternalState(symbol, {
+    type: SYMBOL,
+    tag: tag,
+    description: description
+  });
+  if (!DESCRIPTORS) symbol.description = description;
+  return symbol;
+};
+
+var $defineProperty = function defineProperty(O, P, Attributes) {
+  if (O === ObjectPrototype) $defineProperty(ObjectPrototypeSymbols, P, Attributes);
+  anObject(O);
+  var key = toPropertyKey(P);
+  anObject(Attributes);
+  if (hasOwn(AllSymbols, key)) {
+    if (!Attributes.enumerable) {
+      if (!hasOwn(O, HIDDEN)) nativeDefineProperty(O, HIDDEN, createPropertyDescriptor(1, nativeObjectCreate(null)));
+      O[HIDDEN][key] = true;
+    } else {
+      if (hasOwn(O, HIDDEN) && O[HIDDEN][key]) O[HIDDEN][key] = false;
+      Attributes = nativeObjectCreate(Attributes, { enumerable: createPropertyDescriptor(0, false) });
+    } return setSymbolDescriptor(O, key, Attributes);
+  } return nativeDefineProperty(O, key, Attributes);
+};
+
+var $defineProperties = function defineProperties(O, Properties) {
+  anObject(O);
+  var properties = toIndexedObject(Properties);
+  var keys = objectKeys(properties).concat($getOwnPropertySymbols(properties));
+  $forEach(keys, function (key) {
+    if (!DESCRIPTORS || call($propertyIsEnumerable, properties, key)) $defineProperty(O, key, properties[key]);
+  });
+  return O;
+};
+
+var $create = function create(O, Properties) {
+  return Properties === undefined ? nativeObjectCreate(O) : $defineProperties(nativeObjectCreate(O), Properties);
+};
+
+var $propertyIsEnumerable = function propertyIsEnumerable(V) {
+  var P = toPropertyKey(V);
+  var enumerable = call(nativePropertyIsEnumerable, this, P);
+  if (this === ObjectPrototype && hasOwn(AllSymbols, P) && !hasOwn(ObjectPrototypeSymbols, P)) return false;
+  return enumerable || !hasOwn(this, P) || !hasOwn(AllSymbols, P) || hasOwn(this, HIDDEN) && this[HIDDEN][P]
+    ? enumerable : true;
+};
+
+var $getOwnPropertyDescriptor = function getOwnPropertyDescriptor(O, P) {
+  var it = toIndexedObject(O);
+  var key = toPropertyKey(P);
+  if (it === ObjectPrototype && hasOwn(AllSymbols, key) && !hasOwn(ObjectPrototypeSymbols, key)) return;
+  var descriptor = nativeGetOwnPropertyDescriptor(it, key);
+  if (descriptor && hasOwn(AllSymbols, key) && !(hasOwn(it, HIDDEN) && it[HIDDEN][key])) {
+    descriptor.enumerable = true;
+  }
+  return descriptor;
+};
+
+var $getOwnPropertyNames = function getOwnPropertyNames(O) {
+  var names = nativeGetOwnPropertyNames(toIndexedObject(O));
+  var result = [];
+  $forEach(names, function (key) {
+    if (!hasOwn(AllSymbols, key) && !hasOwn(hiddenKeys, key)) push(result, key);
+  });
+  return result;
+};
+
+var $getOwnPropertySymbols = function (O) {
+  var IS_OBJECT_PROTOTYPE = O === ObjectPrototype;
+  var names = nativeGetOwnPropertyNames(IS_OBJECT_PROTOTYPE ? ObjectPrototypeSymbols : toIndexedObject(O));
+  var result = [];
+  $forEach(names, function (key) {
+    if (hasOwn(AllSymbols, key) && (!IS_OBJECT_PROTOTYPE || hasOwn(ObjectPrototype, key))) {
+      push(result, AllSymbols[key]);
+    }
+  });
+  return result;
+};
+
+// `Symbol` constructor
+// https://tc39.es/ecma262/#sec-symbol-constructor
+if (!NATIVE_SYMBOL) {
+  $Symbol = function Symbol() {
+    if (isPrototypeOf(SymbolPrototype, this)) throw new TypeError('Symbol is not a constructor');
+    var description = !arguments.length || arguments[0] === undefined ? undefined : $toString(arguments[0]);
+    var tag = uid(description);
+    var setter = function (value) {
+      var $this = this === undefined ? global : this;
+      if ($this === ObjectPrototype) call(setter, ObjectPrototypeSymbols, value);
+      if (hasOwn($this, HIDDEN) && hasOwn($this[HIDDEN], tag)) $this[HIDDEN][tag] = false;
+      var descriptor = createPropertyDescriptor(1, value);
+      try {
+        setSymbolDescriptor($this, tag, descriptor);
+      } catch (error) {
+        if (!(error instanceof RangeError)) throw error;
+        fallbackDefineProperty($this, tag, descriptor);
+      }
+    };
+    if (DESCRIPTORS && USE_SETTER) setSymbolDescriptor(ObjectPrototype, tag, { configurable: true, set: setter });
+    return wrap(tag, description);
+  };
+
+  SymbolPrototype = $Symbol[PROTOTYPE];
+
+  defineBuiltIn(SymbolPrototype, 'toString', function toString() {
+    return getInternalState(this).tag;
+  });
+
+  defineBuiltIn($Symbol, 'withoutSetter', function (description) {
+    return wrap(uid(description), description);
+  });
+
+  propertyIsEnumerableModule.f = $propertyIsEnumerable;
+  definePropertyModule.f = $defineProperty;
+  definePropertiesModule.f = $defineProperties;
+  getOwnPropertyDescriptorModule.f = $getOwnPropertyDescriptor;
+  getOwnPropertyNamesModule.f = getOwnPropertyNamesExternal.f = $getOwnPropertyNames;
+  getOwnPropertySymbolsModule.f = $getOwnPropertySymbols;
+
+  wrappedWellKnownSymbolModule.f = function (name) {
+    return wrap(wellKnownSymbol(name), name);
+  };
+
+  if (DESCRIPTORS) {
+    // https://github.com/tc39/proposal-Symbol-description
+    defineBuiltInAccessor(SymbolPrototype, 'description', {
+      configurable: true,
+      get: function description() {
+        return getInternalState(this).description;
+      }
+    });
+    if (!IS_PURE) {
+      defineBuiltIn(ObjectPrototype, 'propertyIsEnumerable', $propertyIsEnumerable, { unsafe: true });
+    }
+  }
+}
+
+$({ global: true, constructor: true, wrap: true, forced: !NATIVE_SYMBOL, sham: !NATIVE_SYMBOL }, {
+  Symbol: $Symbol
+});
+
+$forEach(objectKeys(WellKnownSymbolsStore), function (name) {
+  defineWellKnownSymbol(name);
+});
+
+$({ target: SYMBOL, stat: true, forced: !NATIVE_SYMBOL }, {
+  useSetter: function () { USE_SETTER = true; },
+  useSimple: function () { USE_SETTER = false; }
+});
+
+$({ target: 'Object', stat: true, forced: !NATIVE_SYMBOL, sham: !DESCRIPTORS }, {
+  // `Object.create` method
+  // https://tc39.es/ecma262/#sec-object.create
+  create: $create,
+  // `Object.defineProperty` method
+  // https://tc39.es/ecma262/#sec-object.defineproperty
+  defineProperty: $defineProperty,
+  // `Object.defineProperties` method
+  // https://tc39.es/ecma262/#sec-object.defineproperties
+  defineProperties: $defineProperties,
+  // `Object.getOwnPropertyDescriptor` method
+  // https://tc39.es/ecma262/#sec-object.getownpropertydescriptors
+  getOwnPropertyDescriptor: $getOwnPropertyDescriptor
+});
+
+$({ target: 'Object', stat: true, forced: !NATIVE_SYMBOL }, {
+  // `Object.getOwnPropertyNames` method
+  // https://tc39.es/ecma262/#sec-object.getownpropertynames
+  getOwnPropertyNames: $getOwnPropertyNames
+});
+
+// `Symbol.prototype[@@toPrimitive]` method
+// https://tc39.es/ecma262/#sec-symbol.prototype-@@toprimitive
+defineSymbolToPrimitive();
+
+// `Symbol.prototype[@@toStringTag]` property
+// https://tc39.es/ecma262/#sec-symbol.prototype-@@tostringtag
+setToStringTag($Symbol, SYMBOL);
+
+hiddenKeys[HIDDEN] = true;
+
+
+/***/ }),
+
+/***/ 9463:
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+// `Symbol.prototype.description` getter
+// https://tc39.es/ecma262/#sec-symbol.prototype.description
+
+var $ = __webpack_require__(6518);
+var DESCRIPTORS = __webpack_require__(3724);
+var global = __webpack_require__(4475);
+var uncurryThis = __webpack_require__(9504);
+var hasOwn = __webpack_require__(9297);
+var isCallable = __webpack_require__(4901);
+var isPrototypeOf = __webpack_require__(1625);
+var toString = __webpack_require__(655);
+var defineBuiltInAccessor = __webpack_require__(2106);
+var copyConstructorProperties = __webpack_require__(7740);
+
+var NativeSymbol = global.Symbol;
+var SymbolPrototype = NativeSymbol && NativeSymbol.prototype;
+
+if (DESCRIPTORS && isCallable(NativeSymbol) && (!('description' in SymbolPrototype) ||
+  // Safari 12 bug
+  NativeSymbol().description !== undefined
+)) {
+  var EmptyStringDescriptionStore = {};
+  // wrap Symbol constructor for correct work with undefined description
+  var SymbolWrapper = function Symbol() {
+    var description = arguments.length < 1 || arguments[0] === undefined ? undefined : toString(arguments[0]);
+    var result = isPrototypeOf(SymbolPrototype, this)
+      ? new NativeSymbol(description)
+      // in Edge 13, String(Symbol(undefined)) === 'Symbol(undefined)'
+      : description === undefined ? NativeSymbol() : NativeSymbol(description);
+    if (description === '') EmptyStringDescriptionStore[result] = true;
+    return result;
+  };
+
+  copyConstructorProperties(SymbolWrapper, NativeSymbol);
+  SymbolWrapper.prototype = SymbolPrototype;
+  SymbolPrototype.constructor = SymbolWrapper;
+
+  var NATIVE_SYMBOL = String(NativeSymbol('description detection')) === 'Symbol(description detection)';
+  var thisSymbolValue = uncurryThis(SymbolPrototype.valueOf);
+  var symbolDescriptiveString = uncurryThis(SymbolPrototype.toString);
+  var regexp = /^Symbol\((.*)\)[^)]+$/;
+  var replace = uncurryThis(''.replace);
+  var stringSlice = uncurryThis(''.slice);
+
+  defineBuiltInAccessor(SymbolPrototype, 'description', {
+    configurable: true,
+    get: function description() {
+      var symbol = thisSymbolValue(this);
+      if (hasOwn(EmptyStringDescriptionStore, symbol)) return '';
+      var string = symbolDescriptiveString(symbol);
+      var desc = NATIVE_SYMBOL ? stringSlice(string, 7, -1) : replace(string, regexp, '$1');
+      return desc === '' ? undefined : desc;
+    }
+  });
+
+  $({ global: true, constructor: true, forced: true }, {
+    Symbol: SymbolWrapper
+  });
+}
+
+
+/***/ }),
+
+/***/ 1510:
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var $ = __webpack_require__(6518);
+var getBuiltIn = __webpack_require__(7751);
+var hasOwn = __webpack_require__(9297);
+var toString = __webpack_require__(655);
+var shared = __webpack_require__(5745);
+var NATIVE_SYMBOL_REGISTRY = __webpack_require__(1296);
+
+var StringToSymbolRegistry = shared('string-to-symbol-registry');
+var SymbolToStringRegistry = shared('symbol-to-string-registry');
+
+// `Symbol.for` method
+// https://tc39.es/ecma262/#sec-symbol.for
+$({ target: 'Symbol', stat: true, forced: !NATIVE_SYMBOL_REGISTRY }, {
+  'for': function (key) {
+    var string = toString(key);
+    if (hasOwn(StringToSymbolRegistry, string)) return StringToSymbolRegistry[string];
+    var symbol = getBuiltIn('Symbol')(string);
+    StringToSymbolRegistry[string] = symbol;
+    SymbolToStringRegistry[symbol] = string;
+    return symbol;
+  }
+});
+
+
+/***/ }),
+
+/***/ 2675:
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+// TODO: Remove this module from `core-js@4` since it's split to modules listed below
+__webpack_require__(6761);
+__webpack_require__(1510);
+__webpack_require__(7812);
+__webpack_require__(3110);
+__webpack_require__(9773);
+
+
+/***/ }),
+
+/***/ 7812:
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+var $ = __webpack_require__(6518);
+var hasOwn = __webpack_require__(9297);
+var isSymbol = __webpack_require__(757);
+var tryToString = __webpack_require__(6823);
+var shared = __webpack_require__(5745);
+var NATIVE_SYMBOL_REGISTRY = __webpack_require__(1296);
+
+var SymbolToStringRegistry = shared('symbol-to-string-registry');
+
+// `Symbol.keyFor` method
+// https://tc39.es/ecma262/#sec-symbol.keyfor
+$({ target: 'Symbol', stat: true, forced: !NATIVE_SYMBOL_REGISTRY }, {
+  keyFor: function keyFor(sym) {
+    if (!isSymbol(sym)) throw new TypeError(tryToString(sym) + ' is not a symbol');
+    if (hasOwn(SymbolToStringRegistry, sym)) return SymbolToStringRegistry[sym];
   }
 });
 
@@ -6388,7 +7270,7 @@ var getOtherInfo = function () {
               phone: 15680587919,
               address: "四川成都",
               blog: "https://juejin.cn/user/2186269944188333/posts",
-              sourceCode: "",
+              sourceCode: "https://github.com/myselfwly/wly.github.io/tree/main",
               degree: "本科（全日制）"
             }
           });
@@ -8435,15 +9317,19 @@ var OtherInfo = function OtherInfo(props) {
       })]
     }), (0,jsx_runtime.jsx)("div", {
       className: "sourceCode",
-      children: (0,jsx_runtime.jsx)(icons_GithubOutlined, {
-        style: {
-          fontSize: 18
-        }
+      children: (0,jsx_runtime.jsx)("a", {
+        href: otherInfo.sourceCode,
+        target: "_blank",
+        children: (0,jsx_runtime.jsx)(icons_GithubOutlined, {
+          style: {
+            fontSize: 18
+          }
+        })
       })
     })]
   });
 };
-var OtherInfoWarpper = ut.div(OtherInfo_templateObject || (OtherInfo_templateObject = _taggedTemplateLiteralLoose(["\n\tmargin-top: 22px;\n\twidth: 50%;\n\tdisplay: grid;\n\tgrid-template-columns: 1fr 1fr 1fr;\n\tgrid-template-rows: 24px 24px;\n\tgrid-gap: 10px;\n\t.label {\n\t\twidth: 2rem;\n\t}\n\t.label::after {\n\t\tcontent: \" : \";\n\t\tdisplay: inline;\n\t\ttext-align: end;\n\t}\n\t.other {\n\t\tdisplay: flex;\n\t}\n\t.sourceCode {\n\t\tposition: fixed;\n\t\ttop: 8px;\n\t\tright: 8px;\n\t}\n"])));
+var OtherInfoWarpper = ut.div(OtherInfo_templateObject || (OtherInfo_templateObject = _taggedTemplateLiteralLoose(["\n\tmargin-top: 22px;\n\twidth: 50%;\n\tdisplay: grid;\n\tgrid-template-columns: 1fr 1fr 1fr;\n\tgrid-template-rows: 24px 24px;\n\tgrid-gap: 10px;\n\t.label {\n\t\twidth: 2rem;\n\t}\n\t.label::after {\n\t\tcontent: \" : \";\n\t\tdisplay: inline;\n\t\ttext-align: end;\n\t}\n\t.other {\n\t\tdisplay: flex;\n\t}\n\t.sourceCode {\n\t\tposition: fixed;\n\t\ttop: 8px;\n\t\tright: 8px;\n\t\tcursor: pointer;\n\t}\n"])));
 ;// CONCATENATED MODULE: ./src/App/BaseInfo/index.tsx
 
 var BaseInfo_templateObject;
@@ -8470,6 +9356,281 @@ var BaseInfo = function BaseInfo(props) {
 var BaseInfoWarpper = ut.div(BaseInfo_templateObject || (BaseInfo_templateObject = _taggedTemplateLiteralLoose(["\n\theight: 172px;\n\tpadding: 1rem;\n\tbackground: linear-gradient(\n\t\t\t217deg,\n\t\t\trgb(137 137 242 / 80%),\n\t\t\trgba(255, 0, 0, 0) 70.71%\n\t\t),\n\t\tlinear-gradient(312deg, rgb(66 148 66 / 80%), rgba(0, 255, 0, 0) 70.71%),\n\t\tlinear-gradient(336deg, rgba(80, 80, 142, 0.8), rgba(0, 0, 255, 0) 70.71%);\n\tborder-top-left-radius: 4px;\n\tborder-top-right-radius: 4px;\n\tborder-bottom-left-radius: 2px;\n\tborder-bottom-right-radius: 2px;\n\tbox-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5), 8px 8px 0 rgba(0, 0, 0, 0.4),\n\t\t12px 12px 0 rgba(0, 0, 0, 0.3), 16px 16px 0 rgba(0, 0, 0, 0.2),\n\t\t20px 20px 0 rgba(0, 0, 0, 0.05);\n\tdisplay: flex;\n\t.photo {\n\t\twidth: fit-content;\n\t\theight: fit-content;\n\t}\n\t.textInfo {\n\t\tflex: 1 1 auto;\n\t\tmargin-left: 48px;\n\t}\n"])));
 // EXTERNAL MODULE: ./node_modules/core-js/modules/es.array.map.js
 var es_array_map = __webpack_require__(2062);
+;// CONCATENATED MODULE: ./src/App/SkillInfo/components/SkillItem/index.tsx
+
+var SkillItem_templateObject;
+
+
+
+
+var SkillItem = function SkillItem(_ref) {
+  var data = _ref.data,
+    level = _ref.level;
+  return (0,jsx_runtime.jsx)(SkillItemWarpper, {
+    className: "level_" + level,
+    $level: level,
+    children: parseData(data, level)
+  });
+};
+var SlillItemLi = function SlillItemLi(_ref2) {
+  var _data$children;
+  var data = _ref2.data,
+    level = _ref2.level;
+  return (0,jsx_runtime.jsxs)("li", {
+    className: "contain",
+    children: [(0,jsx_runtime.jsx)("div", {
+      className: "title",
+      children: data.title
+    }), !!(data != null && (_data$children = data.children) != null && _data$children.length) && (0,jsx_runtime.jsx)("div", {
+      className: "children_skill",
+      children: (0,jsx_runtime.jsx)(SkillItem, {
+        data: data.children,
+        level: level + 1
+      })
+    })]
+  });
+};
+var parseData = function parseData(data, level) {
+  return data.map(function (item, index) {
+    return (0,jsx_runtime.jsx)(SlillItemLi, {
+      data: item,
+      level: level != null ? level : 0
+    }, index + "_" + level);
+  });
+};
+var getListStyle = function getListStyle(level) {
+  var listStyleLists = ["simp-chinese-informal", "decimal", "lower-latin", "upper-roman"];
+  if (level + 1 >= listStyleLists.length) return "decimal";
+  return listStyleLists[level];
+};
+var SkillItemWarpper = ut.ol(SkillItem_templateObject || (SkillItem_templateObject = _taggedTemplateLiteralLoose(["\n\t&:nth-child(n + 1) {\n\t\tmargin-top: 14px;\n\t}\n\twidth: 100%;\n\t&.", " {\n\t\tli {\n\t\t\tlist-style: ", ";\n\t\t\t&:nth-child(n + 1) {\n\t\t\t\tmargin-top: 8px;\n\t\t\t}\n\t\t}\n\t\t.contain {\n\t\t\tpadding-left: ", "px;\n\t\t}\n\t\t.title {\n\t\t\tfont-size: ", "px;\n\t\t}\n\t}\n"])), function (_ref3) {
+  var $level = _ref3.$level;
+  return "level_" + $level;
+}, function (_ref4) {
+  var $level = _ref4.$level;
+  return getListStyle($level);
+}, function (_ref5) {
+  var $level = _ref5.$level;
+  return 48 - $level * 16;
+}, function (_ref6) {
+  var $level = _ref6.$level;
+  var res = 20 - $level * 4;
+  return res < 12 ? 12 : res;
+});
+;// CONCATENATED MODULE: ./src/components/bussiness/Title/index.tsx
+
+var Title_templateObject;
+
+
+var Title = function Title(_ref) {
+  var title = _ref.title;
+  return (0,jsx_runtime.jsx)(TitleWarpper, {
+    children: (0,jsx_runtime.jsx)("span", {
+      className: "text",
+      children: title
+    })
+  });
+};
+var TitleWarpper = ut.div(Title_templateObject || (Title_templateObject = _taggedTemplateLiteralLoose(["\n\twidth: 100%;\n\theight: 42px;\n\tmargin-bottom: 8px;\n\tbox-sizing: border-box;\n\tborder-bottom: 4px solid #05a6ec;\n\ttext-indent: 0;\n\tdisplay: flex;\n\talign-items: center;\n\t&::before {\n\t\tcontent: \"\";\n\t\tdisplay: inline-block;\n\t\twidth: 1em;\n\t\theight: 100%;\n\t\tbackground-color: #05a6ec;\n\t}\n\t.text {\n\t\tfont-size: 30px;\n\t\ttext-indent: 0.6rem;\n\t}\n"])));
+;// CONCATENATED MODULE: ./src/App/SkillInfo/index.tsx
+
+var SkillInfo_templateObject;
+
+
+
+
+
+
+
+var SkillInfo = function SkillInfo(props) {
+  var _useState = (0,react.useState)([]),
+    skillData = _useState[0],
+    setSkillData = _useState[1];
+  (0,react.useEffect)(function () {
+    getSkillInfo().then(function (_ref) {
+      var data = _ref.data;
+      setSkillData(data);
+    });
+  }, []);
+  return (0,jsx_runtime.jsxs)(SkillInfoWarpper, {
+    children: [(0,jsx_runtime.jsx)(Title, {
+      title: "\u6280\u80FD\u638C\u63E1"
+    }), (0,jsx_runtime.jsx)("div", {
+      className: "contain",
+      children: (0,jsx_runtime.jsx)(SkillItem, {
+        data: skillData,
+        level: 0
+      })
+    })]
+  });
+};
+var SkillInfoWarpper = ut.div(SkillInfo_templateObject || (SkillInfo_templateObject = _taggedTemplateLiteralLoose(["\n\twidth: 100%;\n\theight: fit-content;\n\t& > .contain {\n\t\tpadding-top: 32px;\n\t\tpadding-left: 48px;\n\t}\n"])));
+// EXTERNAL MODULE: ./node_modules/core-js/modules/es.symbol.js
+var es_symbol = __webpack_require__(2675);
+// EXTERNAL MODULE: ./node_modules/core-js/modules/es.symbol.description.js
+var es_symbol_description = __webpack_require__(9463);
+;// CONCATENATED MODULE: ./src/App/WorkInfo/components/WorkItem/ProjectName.tsx
+
+var ProjectName_templateObject;
+
+
+
+var ProjectName = function ProjectName(_ref) {
+  var projectName = _ref.projectName;
+  return (0,jsx_runtime.jsxs)(ProjectNameWarpper, {
+    children: [(0,jsx_runtime.jsxs)("div", {
+      className: "bg_main",
+      children: [(0,jsx_runtime.jsx)("div", {
+        className: "block_bg"
+      }), (0,jsx_runtime.jsx)("div", {
+        className: "arror_bg"
+      }), (0,jsx_runtime.jsx)("div", {
+        className: "arror_bg end_arror",
+        children: (0,jsx_runtime.jsx)("div", {
+          className: "arror_bg sider_arror"
+        })
+      }), (0,jsx_runtime.jsx)("div", {
+        className: "arror_bg end_arror bottom",
+        children: (0,jsx_runtime.jsx)("div", {
+          className: "arror_bg sider_arror"
+        })
+      })]
+    }), (0,jsx_runtime.jsx)("div", {
+      className: "bottom_line"
+    }), (0,jsx_runtime.jsx)("div", {
+      className: "textContain",
+      children: projectName
+    })]
+  });
+};
+var ProjectNameWarpper = ut.div(ProjectName_templateObject || (ProjectName_templateObject = _taggedTemplateLiteralLoose(["\n\theight: 100%;\n\ttext-indent: 1rem;\n\tposition: relative;\n\t.bg_main {\n\t\tposition: absolute;\n\t\t/* width: 240px; */\n\t\tbottom: 4px;\n\t\tdisplay: flex;\n\t\t.block_bg {\n\t\t\twidth: 240px;\n\t\t\tborder: 22px solid #05a6ec;\n\t\t\tborder-top-right-radius: 2px;\n\t\t\tborder-bottom-right-radius: 2px;\n\t\t}\n\t\t.arror_bg {\n\t\t\tmargin-left: -1px;\n\t\t\tz-index: 2;\n\t\t\twidth: 0;\n\t\t\tborder-left: 18px solid #05a6ec;\n\t\t\tborder-top: 22px solid #00000000;\n\t\t\tborder-bottom: 22px solid #00000000;\n\t\t}\n\t\t.offect {\n\t\t\tmargin-left: -4px;\n\t\t}\n\t\t.end_arror {\n\t\t\tposition: relative;\n\n\t\t\ttransform: scale(0.9);\n\t\t\tz-index: 1;\n\t\t\tmargin-left: -10px;\n\t\t\t.sider_arror {\n\t\t\t\tposition: absolute;\n\t\t\t\ttransform: scale(1);\n\t\t\t\tborder-left: 18px solid #fff;\n\t\t\t\ttop: -22px;\n\t\t\t\tleft: -22px;\n\t\t\t}\n\t\t}\n\t\t.bottom {\n\t\t\ttransform: scale(0.7);\n\t\t\tz-index: 0;\n\t\t\tmargin-left: -8px;\n\t\t}\n\t}\n\t.bottom_line {\n\t\tposition: absolute;\n\t\twidth: 100%;\n\t\theight: 4px;\n\t\tbottom: 0;\n\t\tbackground: #05a6ec;\n\t}\n\t.textContain {\n\t\tposition: absolute;\n\t}\n"])));
+;// CONCATENATED MODULE: ./src/App/WorkInfo/components/WorkItem/RangeTime.tsx
+
+var RangeTime_templateObject;
+
+
+
+var RangeTime = function RangeTime(_ref) {
+  var startTime = _ref.startTime,
+    endTime = _ref.endTime;
+  return (0,jsx_runtime.jsxs)(RangeTimeWarpper, {
+    children: [(0,jsx_runtime.jsx)("div", {
+      className: "bottom_line"
+    }), (0,jsx_runtime.jsxs)("div", {
+      className: "textContain",
+      children: [startTime, " -- ", endTime]
+    })]
+  });
+};
+var RangeTimeWarpper = ut.div(RangeTime_templateObject || (RangeTime_templateObject = _taggedTemplateLiteralLoose(["\n\theight: 100%;\n\tposition: relative;\n\t.bottom_line {\n\t\tposition: absolute;\n\t\twidth: 100%;\n\t\theight: 4px;\n\t\tbottom: 0;\n\t\tbackground: #05a6ec;\n\t\tborder-bottom-right-radius: 4px;\n\t\tborder-top-right-radius: 4px;\n\t}\n\t.textContain {\n\t\tposition: absolute;\n\t\tright: 4px;\n\t}\n"])));
+// EXTERNAL MODULE: ./node_modules/core-js/modules/es.array.join.js
+var es_array_join = __webpack_require__(8598);
+;// CONCATENATED MODULE: ./src/App/WorkInfo/components/WorkItem/TechSatck.tsx
+
+var TechSatck_templateObject;
+
+
+
+var TechSatck = function TechSatck(_ref) {
+  var techStack = _ref.techStack;
+  return (0,jsx_runtime.jsx)(TechSatckWarpper, {
+    children: (0,jsx_runtime.jsx)("p", {
+      children: techStack.join(" ,")
+    })
+  });
+};
+var TechSatckWarpper = ut.div(TechSatck_templateObject || (TechSatck_templateObject = _taggedTemplateLiteralLoose(["\n\tcolor: #8c8c8c;\n\tborder-left: 4px solid #2196f3;\n\tbackground-color: #f0fdff;\n\tpadding: 1px 20px;\n\tmargin: 22px 0;\n\ttransition: color 0.35s;\n\t&::after {\n\t\tdisplay: block;\n\t\tcontent: \"\";\n\t}\n\tp {\n\t\tmargin: 10px 0;\n\t\tline-height: inherit;\n\t}\n"])));
+;// CONCATENATED MODULE: ./src/App/WorkInfo/components/WorkItem/Description.tsx
+
+var Description_templateObject;
+
+
+
+
+var Description = function Description(_ref) {
+  var description = _ref.description;
+  return (0,jsx_runtime.jsx)(DescriptionWarpper, {
+    children: description
+  });
+};
+var DescriptionWarpper = ut.div(Description_templateObject || (Description_templateObject = _taggedTemplateLiteralLoose([""])));
+;// CONCATENATED MODULE: ./src/App/WorkInfo/components/WorkItem/index.tsx
+
+var WorkItem_templateObject;
+
+
+
+
+
+
+
+
+
+var WorkItem = function WorkItem(_ref) {
+  var _ref$data = _ref.data,
+    projectName = _ref$data.projectName,
+    startTime = _ref$data.startTime,
+    endTime = _ref$data.endTime,
+    techStack = _ref$data.techStack,
+    description = _ref$data.description;
+  return (0,jsx_runtime.jsxs)(WorkItemWarpper, {
+    children: [(0,jsx_runtime.jsx)("div", {
+      className: "work name",
+      children: (0,jsx_runtime.jsx)(ProjectName, {
+        projectName: projectName
+      })
+    }), (0,jsx_runtime.jsx)("div", {
+      className: "work range",
+      children: (0,jsx_runtime.jsx)(RangeTime, {
+        startTime: startTime,
+        endTime: endTime
+      })
+    }), (0,jsx_runtime.jsx)("div", {
+      className: "work tech",
+      children: (0,jsx_runtime.jsx)(TechSatck, {
+        techStack: techStack
+      })
+    }), (0,jsx_runtime.jsx)("div", {
+      className: "work description",
+      children: (0,jsx_runtime.jsx)(Description, {
+        description: description
+      })
+    })]
+  });
+};
+var WorkItemWarpper = ut.div(WorkItem_templateObject || (WorkItem_templateObject = _taggedTemplateLiteralLoose(["\n\tword-break: break-all;\n\n\tpadding-top: 32px;\n\t&::before {\n\t\tgrid-column: span 2;\n\t\tcontent: \"\";\n\t\tdisplay: block;\n\t\twidth: 100%;\n\t\theight: 1px;\n\t\tbox-shadow: 0px 3px 3px 0px #6e5353;\n\t}\n\twidth: 100%;\n\tdisplay: grid;\n\tgrid-template-columns: 1fr 1fr;\n\tgrid-auto-rows: auto;\n\tgrid-template-areas:\n\t\t\"name range\"\n\t\t\"tech tech\"\n\t\t\"desc desc\";\n\tgrid-row-gap: 8px;\n\t.work {\n\t\tmargin-left: 32px;\n\t\t&.name {\n\t\t\theight: 48px;\n\t\t\tline-height: 48px;\n\t\t\tmargin-left: 1rem;\n\t\t\tfont-size: 18px;\n\t\t\tfont-weight: 600;\n\t\t\tgrid-area: name;\n\t\t}\n\t\t&.range {\n\t\t\tmargin-left: 0;\n\t\t\tline-height: 48px;\n\t\t\tfont-size: 18px;\n\t\t\tfont-weight: 600;\n\t\t\tgrid-area: range;\n\t\t\ttext-align: end;\n\t\t}\n\t\t&.tech {\n\t\t\tgrid-area: tech;\n\t\t\theight: fit-content;\n\t\t}\n\t\t&.description {\n\t\t\tgrid-area: desc;\n\t\t\ttext-indent: 2em;\n\t\t\tline-height: 1.75;\n\t\t}\n\t}\n"])));
+;// CONCATENATED MODULE: ./src/App/WorkInfo/index.tsx
+
+var WorkInfo_templateObject;
+
+
+
+
+
+
+
+
+var WorkInfo = function WorkInfo(props) {
+  var _useState = (0,react.useState)([]),
+    workInfo = _useState[0],
+    setWorkinfo = _useState[1];
+  (0,react.useEffect)(function () {
+    getWorkInfo().then(function (_ref) {
+      var data = _ref.data;
+      setWorkinfo(data);
+    });
+  }, []);
+  return (0,jsx_runtime.jsxs)(WorkInfoWapper, {
+    children: [(0,jsx_runtime.jsx)(Title, {
+      title: "\u5DE5\u4F5C\u7ECF\u5386"
+    }), workInfo.map(function (item) {
+      return (0,jsx_runtime.jsx)(WorkItem, {
+        data: item
+      }, item.projectName);
+    })]
+  });
+};
+var WorkInfoWapper = ut.div(WorkInfo_templateObject || (WorkInfo_templateObject = _taggedTemplateLiteralLoose([""])));
 ;// CONCATENATED MODULE: ./src/App/EductionInfo/components/EductionItem/SchoolName.tsx
 
 var SchoolName_templateObject;
@@ -8532,14 +9693,14 @@ var Detail = function Detail(_ref) {
 var DetailWarpper = ut.div(Detail_templateObject || (Detail_templateObject = _taggedTemplateLiteralLoose(["\n\theight: 100%;\n\ttext-indent: 1rem;\n\tposition: relative;\n\t.bottom_line {\n\t\tposition: absolute;\n\t\twidth: 100%;\n\t\theight: 4px;\n\t\tbottom: 0;\n\t\tbackground: #05a6ec;\n\t}\n\t.textContain {\n\t\twidth: 100%;\n\t\tposition: absolute;\n\t\tdisplay: flex;\n\t\tz-index: 3;\n\t\t.ranking {\n\t\t\tmargin-left: auto;\n\t\t\tmargin-right: 0px;\n\t\t}\n\t}\n"])));
 ;// CONCATENATED MODULE: ./src/App/EductionInfo/components/EductionItem/RangeTime.tsx
 
-var RangeTime_templateObject;
+var EductionItem_RangeTime_templateObject;
 
 
 
-var RangeTime = function RangeTime(_ref) {
+var RangeTime_RangeTime = function RangeTime(_ref) {
   var startTime = _ref.startTime,
     endTime = _ref.endTime;
-  return (0,jsx_runtime.jsxs)(RangeTimeWarpper, {
+  return (0,jsx_runtime.jsxs)(RangeTime_RangeTimeWarpper, {
     children: [(0,jsx_runtime.jsx)("div", {
       className: "bottom_line"
     }), (0,jsx_runtime.jsxs)("div", {
@@ -8548,7 +9709,7 @@ var RangeTime = function RangeTime(_ref) {
     })]
   });
 };
-var RangeTimeWarpper = ut.div(RangeTime_templateObject || (RangeTime_templateObject = _taggedTemplateLiteralLoose(["\n\theight: 100%;\n\tposition: relative;\n\t.bottom_line {\n\t\tposition: absolute;\n\t\twidth: 100%;\n\t\theight: 4px;\n\t\tbottom: 0;\n\t\tbackground: #05a6ec;\n\t\tborder-bottom-right-radius: 4px;\n\t\tborder-top-right-radius: 4px;\n\t}\n\t.textContain {\n\t\tposition: absolute;\n\t\tright: 4px;\n\t}\n"])));
+var RangeTime_RangeTimeWarpper = ut.div(EductionItem_RangeTime_templateObject || (EductionItem_RangeTime_templateObject = _taggedTemplateLiteralLoose(["\n\theight: 100%;\n\tposition: relative;\n\t.bottom_line {\n\t\tposition: absolute;\n\t\twidth: 100%;\n\t\theight: 4px;\n\t\tbottom: 0;\n\t\tbackground: #05a6ec;\n\t\tborder-bottom-right-radius: 4px;\n\t\tborder-top-right-radius: 4px;\n\t}\n\t.textContain {\n\t\tposition: absolute;\n\t\tright: 4px;\n\t}\n"])));
 ;// CONCATENATED MODULE: ./src/App/EductionInfo/components/EductionItem/Awards.tsx
 
 var Awards_templateObject;
@@ -8608,7 +9769,7 @@ var EductionItem = function EductionItem(_ref) {
       })
     }), (0,jsx_runtime.jsx)("div", {
       className: "eduction range",
-      children: (0,jsx_runtime.jsx)(RangeTime, {
+      children: (0,jsx_runtime.jsx)(RangeTime_RangeTime, {
         endTime: endTime,
         startTime: startTime
       })
@@ -8621,21 +9782,6 @@ var EductionItem = function EductionItem(_ref) {
   });
 };
 var EductionItemWarpper = ut.div(EductionItem_templateObject || (EductionItem_templateObject = _taggedTemplateLiteralLoose(["\n\tword-break: break-all;\n\tpadding-top: 32px;\n\t&::before {\n\t\tgrid-column: span 3;\n\t\tcontent: \"\";\n\t\tdisplay: block;\n\t\twidth: 100%;\n\t\theight: 1px;\n\t\tbox-shadow: 0px 3px 3px 0px #6e5353;\n\t}\n\twidth: 100%;\n\tdisplay: grid;\n\tgrid-template-columns: 1fr 1fr 1fr;\n\tgrid-auto-rows: auto;\n\tgrid-template-areas:\n\t\t\"name detail range\"\n\t\t\"awards awards awards\";\n\tgrid-row-gap: 8px;\n\t.eduction {\n\t\tmargin-left: 32px;\n\t\t&.name {\n\t\t\theight: 48px;\n\t\t\tline-height: 48px;\n\t\t\tmargin-left: 1rem;\n\t\t\tfont-size: 18px;\n\t\t\tfont-weight: 600;\n\t\t\tgrid-area: name;\n\t\t}\n\t\t&.detail {\n\t\t\tmargin-left: 0;\n\t\t\theight: 48px;\n\t\t\tline-height: 48px;\n\t\t\tmargin-left: 0;\n\t\t\tfont-size: 18px;\n\t\t\tfont-weight: 600;\n\t\t\tgrid-area: detail;\n\t\t}\n\t\t&.range {\n\t\t\tmargin-left: 0;\n\t\t\tline-height: 48px;\n\t\t\tfont-size: 18px;\n\t\t\tfont-weight: 600;\n\t\t\tgrid-area: range;\n\t\t\ttext-align: end;\n\t\t}\n\t\t&.awards {\n\t\t\tgrid-area: awards;\n\t\t\theight: fit-content;\n\t\t}\n\t}\n"])));
-;// CONCATENATED MODULE: ./src/components/bussiness/Title/index.tsx
-
-var Title_templateObject;
-
-
-var Title = function Title(_ref) {
-  var title = _ref.title;
-  return (0,jsx_runtime.jsx)(TitleWarpper, {
-    children: (0,jsx_runtime.jsx)("span", {
-      className: "text",
-      children: title
-    })
-  });
-};
-var TitleWarpper = ut.div(Title_templateObject || (Title_templateObject = _taggedTemplateLiteralLoose(["\n\twidth: 100%;\n\theight: 42px;\n\tmargin-bottom: 8px;\n\tbox-sizing: border-box;\n\tborder-bottom: 4px solid #05a6ec;\n\ttext-indent: 0;\n\tdisplay: flex;\n\talign-items: center;\n\t&::before {\n\t\tcontent: \"\";\n\t\tdisplay: inline-block;\n\t\twidth: 1em;\n\t\theight: 100%;\n\t\tbackground-color: #05a6ec;\n\t}\n\t.text {\n\t\tfont-size: 30px;\n\t\ttext-indent: 0.6rem;\n\t}\n"])));
 ;// CONCATENATED MODULE: ./src/App/EductionInfo/index.tsx
 
 var EductionInfo_templateObject;
@@ -8706,12 +9852,20 @@ var App_templateObject;
 
 
 
+
+
 var App = function App() {
   return (0,jsx_runtime.jsxs)(AppWarpper, {
     className: "resume_warpper",
     children: [(0,jsx_runtime.jsx)("div", {
       className: "base info",
       children: (0,jsx_runtime.jsx)(BaseInfo, {})
+    }), (0,jsx_runtime.jsx)("div", {
+      className: "skill info",
+      children: (0,jsx_runtime.jsx)(SkillInfo, {})
+    }), (0,jsx_runtime.jsx)("div", {
+      className: "work info",
+      children: (0,jsx_runtime.jsx)(WorkInfo, {})
     }), (0,jsx_runtime.jsx)("div", {
       className: "eduction info",
       children: (0,jsx_runtime.jsx)(EductionInfo, {})

@@ -26,7 +26,7 @@ export const getOtherInfo = async (): Promise<BaseType<OtherInfoType>> => {
 			phone: 15680587919,
 			address: "四川成都",
 			blog: "https://juejin.cn/user/2186269944188333/posts",
-			sourceCode: "",
+			sourceCode: "https://github.com/myselfwly/wly.github.io/tree/main",
 			degree: "本科（全日制）",
 		},
 	});

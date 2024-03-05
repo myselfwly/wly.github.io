@@ -12,12 +12,12 @@ const App: FC = () => {
 			<div className="base info">
 				<BaseInfo />
 			</div>
-			{/* <div className="skill info">
+			<div className="skill info">
 				<SkillInfo />
 			</div>
 			<div className="work info">
 				<WorkInfo />
-			</div> */}
+			</div>
 			<div className="eduction info">
 				<EductionInfo />
 			</div>
