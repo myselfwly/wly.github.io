@@ -82,7 +82,7 @@ export const OtherInfo: FC<OtherInfoPropsType> = (props) => {
 //style_components
 const OtherInfoWarpper = styled.div`
 	margin-top: 22px;
-	width: 50%;
+	width: 100%;
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
 	grid-template-rows: 24px 24px;
