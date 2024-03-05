@@ -201,7 +201,7 @@ export const getEductionInfo = async (): Promise<BaseType<EductionType[]>> => {
 			{
 				startTime: "2021-07",
 				endTime: "2024-03",
-				school: "成都四方为业",
+				school: "成都四方伟业",
 				major: "WEB 前端工程师",
 				awards: [
 					{ startTime: "2021-07", endTime: "2021-12", name: "优秀管培生" },
