@@ -9732,6 +9732,12 @@ var Awards = function Awards(_ref) {
           children: (0,jsx_runtime.jsx)("a", {
             href: !!item.image ? item.image : "javascript:void(0)",
             target: "_blank",
+            onClick: function onClick(e) {
+              if (!item.image) {
+                e.preventDefault();
+                return false;
+              }
+            },
             children: item.name
           })
         }, item.name + item.startTime + item.endTime);

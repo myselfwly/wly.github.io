@@ -12,7 +12,14 @@ export const Awards: FC<AwardsPropsType> = ({ awards }) => {
 					<li key={item.name + item.startTime + item.endTime}>
 						<a
 							href={!!item.image ? item.image : "javascript:void(0)"}
-							target="_blank">
+							target="_blank"
+							onClick={(e) => {
+								if (!item.image) {
+									e.preventDefault();
+
+									return false;
+								}
+							}}>
 							{item.name}
 						</a>
 					</li>
