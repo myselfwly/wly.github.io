@@ -9729,11 +9729,11 @@ var Awards = function Awards(_ref) {
     }), (0,jsx_runtime.jsx)("ol", {
       children: awards.map(function (item) {
         return (0,jsx_runtime.jsx)("li", {
-          children: !!(item != null && item.image) ? (0,jsx_runtime.jsx)("a", {
-            href: item.image,
+          children: (0,jsx_runtime.jsx)("a", {
+            href: !!item.image ? item.image : "javascript:void(0)",
             target: "_blank",
             children: item.name
-          }) : item.name
+          })
         }, item.name + item.startTime + item.endTime);
       })
     })]

@@ -10,13 +10,11 @@ export const Awards: FC<AwardsPropsType> = ({ awards }) => {
 			<ol>
 				{awards.map((item) => (
 					<li key={item.name + item.startTime + item.endTime}>
-						{!!item?.image ? (
-							<a href={item.image} target="_blank">
-								{item.name}
-							</a>
-						) : (
-							item.name
-						)}
+						<a
+							href={!!item.image ? item.image : "javascript:void(0)"}
+							target="_blank">
+							{item.name}
+						</a>
 					</li>
 				))}
 			</ol>
