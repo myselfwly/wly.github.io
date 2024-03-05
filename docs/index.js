@@ -90,6 +90,9 @@ body {
   width: 21cm;
   margin: auto;
 }
+* {
+  font-size: 14px;
+}
 `, ""]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
@@ -9329,7 +9332,7 @@ var OtherInfo = function OtherInfo(props) {
     })]
   });
 };
-var OtherInfoWarpper = ut.div(OtherInfo_templateObject || (OtherInfo_templateObject = _taggedTemplateLiteralLoose(["\n\tmargin-top: 22px;\n\twidth: 50%;\n\tdisplay: grid;\n\tgrid-template-columns: 1fr 1fr 1fr;\n\tgrid-template-rows: 24px 24px;\n\tgrid-gap: 10px;\n\t.label {\n\t\twidth: 2rem;\n\t}\n\t.label::after {\n\t\tcontent: \" : \";\n\t\tdisplay: inline;\n\t\ttext-align: end;\n\t}\n\t.other {\n\t\tdisplay: flex;\n\t}\n\t.sourceCode {\n\t\tposition: fixed;\n\t\ttop: 8px;\n\t\tright: 8px;\n\t\tcursor: pointer;\n\t}\n"])));
+var OtherInfoWarpper = ut.div(OtherInfo_templateObject || (OtherInfo_templateObject = _taggedTemplateLiteralLoose(["\n\tmargin-top: 22px;\n\twidth: 100%;\n\tdisplay: grid;\n\tgrid-template-columns: 1fr 1fr 1fr;\n\tgrid-template-rows: 24px 24px;\n\tgrid-gap: 10px;\n\t.label {\n\t\twidth: 2rem;\n\t}\n\t.label::after {\n\t\tcontent: \" : \";\n\t\tdisplay: inline;\n\t\ttext-align: end;\n\t}\n\t.other {\n\t\tdisplay: flex;\n\t}\n\t.sourceCode {\n\t\tposition: fixed;\n\t\ttop: 8px;\n\t\tright: 8px;\n\t\tcursor: pointer;\n\t}\n"])));
 ;// CONCATENATED MODULE: ./src/App/BaseInfo/index.tsx
 
 var BaseInfo_templateObject;
